@@ -1,0 +1,15 @@
+forge test --match-path test/RedeemVault.t.sol
+12 passed, 0 failed (2026-10-31)
+
+test_decimals_18_to_6_exact_and_dust_refund
+test_zero_payout_reverts_and_refunds
+test_fake_burn_counts_as_dead_not_burned
+test_cannot_withdraw_after_lock
+test_cannot_close_after_lock
+test_bad_redeem_token_self_and_tax
+test_minReceive_guard
+test_insufficient_reserve_refunds_tax
+test_double_initialize_reverts
+test_preview_matches_split
+test_coverage_bps
+test_non_operator_cannot_fund
