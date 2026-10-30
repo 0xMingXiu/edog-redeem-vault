@@ -55,6 +55,8 @@ contract RedeemVaultV3Upgradeable is Initializable, VaultBaseV3, ReentrancyGuard
 
     address public constant DEAD = 0x000000000000000000000000000000000000dEaD;
 
+    bool public taxDecimalsInitialized;
+
     event RedeemTokenSet(address indexed token, uint8 decimals);
     event MinReserveSet(uint256 minReserve);
     event Funded(address indexed from, uint256 amount);
@@ -87,6 +89,8 @@ contract RedeemVaultV3Upgradeable is Initializable, VaultBaseV3, ReentrancyGuard
     error ZeroPayout();
     error BadRedeemToken();
     error MinReceive();
+    error TaxMetadataNotReady();
+    error InvalidTaxDestruction();
 
     modifier onlyOperator() {
         if (msg.sender != operator && msg.sender != _getGuardian()) revert NotOperator();
@@ -108,7 +112,8 @@ contract RedeemVaultV3Upgradeable is Initializable, VaultBaseV3, ReentrancyGuard
         taxToken = _taxToken;
         _quoteToken = quoteToken_;
         operator = _operator;
-        taxDecimals = _safeDecimals(_taxToken);
+        // Portal supplies a predicted token address before deployment.
+        if (_taxToken.code.length > 0) _ensureTaxDecimals();
         if (_redeemToken != address(0)) {
             _setRedeemToken(_redeemToken);
         }
@@ -148,12 +153,16 @@ contract RedeemVaultV3Upgradeable is Initializable, VaultBaseV3, ReentrancyGuard
         }
     }
 
+    function _ensureTaxDecimals() internal {
+        if (taxDecimalsInitialized) return;
+        if (taxToken.code.length == 0) revert TaxMetadataNotReady();
+        taxDecimals = _safeDecimals(taxToken);
+        taxDecimalsInitialized = true;
+    }
+
     /// @dev Split taxReceived into exact convertible + dust. Never destroy dust.
-    function _splitTax(uint256 taxReceived)
-        internal
-        view
-        returns (uint256 convertible, uint256 pay, uint256 dust)
-    {
+    function _splitTax(uint256 taxReceived) internal view returns (uint256 convertible, uint256 pay, uint256 dust) {
+        if (!taxDecimalsInitialized || redeemToken == address(0)) revert TaxMetadataNotReady();
         if (taxDecimals == redeemDecimals) {
             return (taxReceived, taxReceived, 0);
         }
@@ -215,6 +224,7 @@ contract RedeemVaultV3Upgradeable is Initializable, VaultBaseV3, ReentrancyGuard
             return;
         }
         if (redeemToken == address(0)) revert RedeemTokenUnset();
+        _ensureTaxDecimals();
         if (minReserve == 0) revert MinReserveUnset();
         if (IERC20(redeemToken).balanceOf(address(this)) < minReserve) revert InsufficientReserve();
 
@@ -240,31 +250,10 @@ contract RedeemVaultV3Upgradeable is Initializable, VaultBaseV3, ReentrancyGuard
         if (taxReceived == 0) revert SlippageTax();
 
         (uint256 convertible, uint256 pay, uint256 dust) = _splitTax(taxReceived);
-        if (pay == 0) {
-            // refund everything — nothing convertible
-            // forge-lint: disable-next-line(reentrancy-no-eth)
-            IERC20(taxToken).safeTransfer(msg.sender, taxReceived);
-            revert ZeroPayout();
-        }
-        if (pay < minReceive) {
-            // forge-lint: disable-next-line(reentrancy-no-eth)
-            IERC20(taxToken).safeTransfer(msg.sender, taxReceived);
-            revert MinReceive();
-        }
-        if (IERC20(redeemToken).balanceOf(address(this)) < pay) {
-            // forge-lint: disable-next-line(reentrancy-no-eth)
-            IERC20(taxToken).safeTransfer(msg.sender, taxReceived);
-            revert InsufficientReserve();
-        }
-
-        // Refund dust BEFORE destroy so user never loses unconvertible wei
-        if (dust > 0) {
-            // forge-lint: disable-next-line(reentrancy-no-eth)
-            IERC20(taxToken).safeTransfer(msg.sender, dust);
-            unchecked {
-                totalDustRefunded += dust;
-            }
-        }
+        if (pay == 0) revert ZeroPayout();
+        if (pay < minReceive) revert MinReceive();
+        if (IERC20(redeemToken).balanceOf(address(this)) < pay) revert InsufficientReserve();
+        if (dust > 0) _refundDust(dust);
 
         bool supplyBurned = _destroyTax(convertible);
 
@@ -285,44 +274,44 @@ contract RedeemVaultV3Upgradeable is Initializable, VaultBaseV3, ReentrancyGuard
         emit Redeemed(msg.sender, amount, taxReceived, convertible, dust, pay, userGot, supplyBurned);
     }
 
+    function _refundDust(uint256 dust) internal {
+        uint256 userBeforeDust = IERC20(taxToken).balanceOf(msg.sender);
+        uint256 vaultBeforeDust = IERC20(taxToken).balanceOf(address(this));
+        IERC20(taxToken).safeTransfer(msg.sender, dust);
+        uint256 userAfterDust = IERC20(taxToken).balanceOf(msg.sender);
+        uint256 vaultAfterDust = IERC20(taxToken).balanceOf(address(this));
+        if (
+            userAfterDust < userBeforeDust || userAfterDust - userBeforeDust != dust || vaultAfterDust > vaultBeforeDust
+                || vaultBeforeDust - vaultAfterDust != dust
+        ) revert SlippageTax();
+        totalDustRefunded += dust;
+    }
+
     /// @dev Only count supplyBurned if vault balance drops AND totalSupply drops by the same amount.
     function _destroyTax(uint256 amt) internal returns (bool supplyBurned) {
         uint256 balBefore = IERC20(taxToken).balanceOf(address(this));
         require(balBefore >= amt, "bal");
 
-        uint256 supplyBefore = _totalSupplyOrMax(taxToken);
-
-        // forge-lint: disable-next-line(reentrancy-no-eth)
+        // A failed supply read is not evidence of destruction.
+        uint256 supplyBefore = IERC20Supply(taxToken).totalSupply();
         try IERC20Burnable(taxToken).burn(amt) {} catch {}
-
         uint256 balAfterBurn = IERC20(taxToken).balanceOf(address(this));
-        uint256 supplyAfterBurn = _totalSupplyOrMax(taxToken);
-
-        uint256 consumed = balBefore - balAfterBurn;
-        bool supplyDropped = supplyAfterBurn < supplyBefore && (supplyBefore - supplyAfterBurn) >= consumed;
-
-        if (consumed == amt && supplyDropped) {
-            return true; // real supply burn of full amt
-        }
-
-        // Anything still held → DEAD lock (not counted as supply burn)
-        uint256 left = IERC20(taxToken).balanceOf(address(this));
-        if (left > 0) {
-            uint256 deadBefore = IERC20(taxToken).balanceOf(DEAD);
-            // forge-lint: disable-next-line(reentrancy-no-eth)
-            IERC20(taxToken).safeTransfer(DEAD, left);
-            uint256 deadGot = IERC20(taxToken).balanceOf(DEAD) - deadBefore;
-            if (deadGot == 0 || IERC20(taxToken).balanceOf(address(this)) != 0) revert SlippageTax();
-        }
+        uint256 supplyAfterBurn = IERC20Supply(taxToken).totalSupply();
+        if (
+            balAfterBurn <= balBefore && balBefore - balAfterBurn == amt && supplyAfterBurn <= supplyBefore
+                && supplyBefore - supplyAfterBurn == amt
+        ) return true;
+        // Reject ambiguous partial or transfer-only burns.
+        if (balAfterBurn != balBefore || supplyAfterBurn != supplyBefore) revert InvalidTaxDestruction();
+        uint256 deadBefore = IERC20(taxToken).balanceOf(DEAD);
+        IERC20(taxToken).safeTransfer(DEAD, amt);
+        uint256 deadAfter = IERC20(taxToken).balanceOf(DEAD);
+        uint256 balAfter = IERC20(taxToken).balanceOf(address(this));
+        if (
+            deadAfter < deadBefore || deadAfter - deadBefore != amt || balAfter > balBefore
+                || balBefore - balAfter != amt
+        ) revert SlippageTax();
         return false;
-    }
-
-    function _totalSupplyOrMax(address token) internal view returns (uint256) {
-        try IERC20Supply(token).totalSupply() returns (uint256 s) {
-            return s;
-        } catch {
-            return type(uint256).max; // unknown supply → cannot prove burn
-        }
     }
 
     /// @notice Only BEFORE first open. No other redeemToken exit exists.
@@ -355,6 +344,7 @@ contract RedeemVaultV3Upgradeable is Initializable, VaultBaseV3, ReentrancyGuard
     }
 
     function coverableTaxUnits() public view returns (uint256) {
+        if (!taxDecimalsInitialized) return 0;
         uint256 r = reserve();
         if (r == 0 || redeemToken == address(0)) return 0;
         if (taxDecimals == redeemDecimals) return r;
@@ -512,8 +502,7 @@ contract RedeemVaultBeaconFactory is VaultFactoryBaseV2 {
         }
         vault = address(
             new BeaconProxy(
-                beacon,
-                abi.encodeCall(RedeemVaultV3Upgradeable.initialize, (taxToken, quoteToken, creator, redeemTok))
+                beacon, abi.encodeCall(RedeemVaultV3Upgradeable.initialize, (taxToken, quoteToken, creator, redeemTok))
             )
         );
     }
@@ -529,10 +518,7 @@ contract RedeemVaultBeaconFactory is VaultFactoryBaseV2 {
     function tokenCreationPolicies() public pure override returns (FactoryPolicy[] memory policies) {
         policies = new FactoryPolicy[](1);
         policies[0] = FactoryPolicy({
-            target: "quoteToken",
-            operator: "eq",
-            value: abi.encode(address(0)),
-            description: "Native BNB quote only."
+            target: "quoteToken", operator: "eq", value: abi.encode(address(0)), description: "Native BNB quote only."
         });
     }
 

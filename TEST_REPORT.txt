@@ -1,15 +1,29 @@
-forge test --match-path test/RedeemVault.t.sol
-12 passed, 0 failed (2026-10-31)
+Compiling 2 files with Solc 0.8.26
+Solc 0.8.26 finished in 1.95s
+Compiler run successful!
 
-test_decimals_18_to_6_exact_and_dust_refund
-test_zero_payout_reverts_and_refunds
-test_fake_burn_counts_as_dead_not_burned
-test_cannot_withdraw_after_lock
-test_cannot_close_after_lock
-test_bad_redeem_token_self_and_tax
-test_minReceive_guard
-test_insufficient_reserve_refunds_tax
-test_double_initialize_reverts
-test_preview_matches_split
-test_coverage_bps
-test_non_operator_cannot_fund
+Ran 6 tests for test/AuditRepro.t.sol:AuditRegression
+[PASS] test_DeadFallbackPreservesUnrelatedTaxBalance() (gas: 2428869)
+[PASS] test_PartialBurnReverts() (gas: 2400914)
+[PASS] test_PredictedTaxCreatedBeforeDeploymentAndOpenedAfter() (gas: 2634650)
+[PASS] test_TaxedDustRevertsAtomically() (gas: 2435518)
+[PASS] test_TransferOnlyBurnReverts() (gas: 2336484)
+[PASS] test_ZeroDecimalsIsValid() (gas: 2365634)
+Suite result: ok. 6 passed; 0 failed; 0 skipped; finished in 5.27ms (26.50ms CPU time)
+
+Ran 12 tests for test/RedeemVault.t.sol:RedeemVaultTest
+[PASS] test_bad_redeem_token_self_and_tax() (gas: 482350)
+[PASS] test_cannot_close_after_lock() (gas: 263774)
+[PASS] test_cannot_withdraw_after_lock() (gas: 268795)
+[PASS] test_coverage_bps() (gas: 252357)
+[PASS] test_decimals_18_to_6_exact_and_dust_refund() (gas: 588472)
+[PASS] test_double_initialize_reverts() (gas: 44686)
+[PASS] test_fake_burn_counts_as_dead_not_burned() (gas: 2399503)
+[PASS] test_insufficient_reserve_refunds_tax() (gas: 403840)
+[PASS] test_minReceive_guard() (gas: 375531)
+[PASS] test_non_operator_cannot_fund() (gas: 39288)
+[PASS] test_preview_matches_split() (gas: 21630)
+[PASS] test_zero_payout_reverts_and_refunds() (gas: 398196)
+Suite result: ok. 12 passed; 0 failed; 0 skipped; finished in 5.41ms (25.74ms CPU time)
+
+Ran 2 test suites in 7.87ms (10.68ms CPU time): 18 tests passed, 0 failed, 0 skipped (18 total tests)
