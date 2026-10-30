@@ -1,29 +1,97 @@
 Compiling 2 files with Solc 0.8.26
-Solc 0.8.26 finished in 1.95s
+Solc 0.8.26 finished in 2.46s
 Compiler run successful!
 
+Ran 8 tests for test/FlapSpec.t.sol:FlapSpecTest
+[PASS] test_BscMainnetGuardianAssignment() (gas: 6782615)
+[PASS] test_DirectFundingNeedsNoApproval() (gas: 664015)
+[PASS] test_GuardianRemainsPrivilegedAfterOperatorChangeButHonorsLock() (gas: 445589)
+[PASS] test_OnlyGuardianCanUpgradeAndStateSurvives() (gas: 5627262)
+[PASS] test_OnlyPortalCanCreate() (gas: 33507)
+[PASS] test_QuoteDeltaSyncAndOutflow() (gas: 269409)
+[PASS] test_RejectUnsupportedQuoteAtAllEntryPoints() (gas: 5494629)
+[PASS] test_SchemaWorkflowUsesExplicitApprovalAndRawUnits() (gas: 811759)
+Suite result: ok. 8 passed; 0 failed; 0 skipped; finished in 6.08ms (23.47ms CPU time)
+
 Ran 6 tests for test/AuditRepro.t.sol:AuditRegression
-[PASS] test_DeadFallbackPreservesUnrelatedTaxBalance() (gas: 2428869)
-[PASS] test_PartialBurnReverts() (gas: 2400914)
-[PASS] test_PredictedTaxCreatedBeforeDeploymentAndOpenedAfter() (gas: 2634650)
-[PASS] test_TaxedDustRevertsAtomically() (gas: 2435518)
-[PASS] test_TransferOnlyBurnReverts() (gas: 2336484)
-[PASS] test_ZeroDecimalsIsValid() (gas: 2365634)
-Suite result: ok. 6 passed; 0 failed; 0 skipped; finished in 5.27ms (26.50ms CPU time)
+[PASS] test_DeadFallbackPreservesUnrelatedTaxBalance() (gas: 2428908)
+[PASS] test_PartialBurnReverts() (gas: 2400976)
+[PASS] test_PredictedTaxCreatedBeforeDeploymentAndOpenedAfter() (gas: 2634748)
+[PASS] test_TaxedDustRevertsAtomically() (gas: 2435578)
+[PASS] test_TransferOnlyBurnReverts() (gas: 2336546)
+[PASS] test_ZeroDecimalsIsValid() (gas: 2365650)
+Suite result: ok. 6 passed; 0 failed; 0 skipped; finished in 6.35ms (22.97ms CPU time)
 
 Ran 12 tests for test/RedeemVault.t.sol:RedeemVaultTest
-[PASS] test_bad_redeem_token_self_and_tax() (gas: 482350)
-[PASS] test_cannot_close_after_lock() (gas: 263774)
-[PASS] test_cannot_withdraw_after_lock() (gas: 268795)
-[PASS] test_coverage_bps() (gas: 252357)
-[PASS] test_decimals_18_to_6_exact_and_dust_refund() (gas: 588472)
+[PASS] test_bad_redeem_token_self_and_tax() (gas: 482388)
+[PASS] test_cannot_close_after_lock() (gas: 263752)
+[PASS] test_cannot_withdraw_after_lock() (gas: 268773)
+[PASS] test_coverage_bps() (gas: 252335)
+[PASS] test_decimals_18_to_6_exact_and_dust_refund() (gas: 588496)
 [PASS] test_double_initialize_reverts() (gas: 44686)
-[PASS] test_fake_burn_counts_as_dead_not_burned() (gas: 2399503)
-[PASS] test_insufficient_reserve_refunds_tax() (gas: 403840)
-[PASS] test_minReceive_guard() (gas: 375531)
-[PASS] test_non_operator_cannot_fund() (gas: 39288)
+[PASS] test_fake_burn_counts_as_dead_not_burned() (gas: 2399565)
+[PASS] test_insufficient_reserve_refunds_tax() (gas: 403818)
+[PASS] test_minReceive_guard() (gas: 375509)
+[PASS] test_non_operator_cannot_fund() (gas: 39266)
 [PASS] test_preview_matches_split() (gas: 21630)
-[PASS] test_zero_payout_reverts_and_refunds() (gas: 398196)
-Suite result: ok. 12 passed; 0 failed; 0 skipped; finished in 5.41ms (25.74ms CPU time)
+[PASS] test_zero_payout_reverts_and_refunds() (gas: 398174)
+Suite result: ok. 12 passed; 0 failed; 0 skipped; finished in 5.21ms (24.21ms CPU time)
 
-Ran 2 test suites in 7.87ms (10.68ms CPU time): 18 tests passed, 0 failed, 0 skipped (18 total tests)
+Ran 3 test suites in 9.91ms (17.64ms CPU time): 26 tests passed, 0 failed, 0 skipped (26 total tests)
+Compiling 1 files with Solc 0.8.26
+Solc 0.8.26 finished in 1.10s
+Compiler run successful!
+
+╭--------------------------+------------------+-------------------+--------------------+---------------------╮
+| Contract                 | Runtime Size (B) | Initcode Size (B) | Runtime Margin (B) | Initcode Margin (B) |
++============================================================================================================+
+| BeaconProxy              | 359              | 1,710             | 24,217             | 47,442              |
+|--------------------------+------------------+-------------------+--------------------+---------------------|
+| ERC1967Proxy             | 183              | 1,204             | 24,393             | 47,948              |
+|--------------------------+------------------+-------------------+--------------------+---------------------|
+| ERC20                    | 2,324            | 2,992             | 22,252             | 46,160              |
+|--------------------------+------------------+-------------------+--------------------+---------------------|
+| MockBurnableERC20        | 3,011            | 3,731             | 21,565             | 45,421              |
+|--------------------------+------------------+-------------------+--------------------+---------------------|
+| MockERC20                | 2,593            | 3,307             | 21,983             | 45,845              |
+|--------------------------+------------------+-------------------+--------------------+---------------------|
+| MockFakeBurnERC20        | 2,644            | 3,364             | 21,932             | 45,788              |
+|--------------------------+------------------+-------------------+--------------------+---------------------|
+| MockFeeOnTransferERC20   | 2,837            | 3,566             | 21,739             | 45,586              |
+|--------------------------+------------------+-------------------+--------------------+---------------------|
+| PartialBurnToken         | 3,052            | 3,537             | 21,524             | 45,615              |
+|--------------------------+------------------+-------------------+--------------------+---------------------|
+| RedeemVaultBeaconFactory | 5,552            | 31,294            | 19,024             | 17,858              |
+|--------------------------+------------------+-------------------+--------------------+---------------------|
+| RedeemVaultV3Upgradeable | 23,790           | 24,014            | 786                | 25,138              |
+|--------------------------+------------------+-------------------+--------------------+---------------------|
+| SpecUpgrade              | 23,835           | 24,059            | 741                | 25,093              |
+|--------------------------+------------------+-------------------+--------------------+---------------------|
+| TransferBurnToken        | 2,662            | 3,148             | 21,914             | 46,004              |
+|--------------------------+------------------+-------------------+--------------------+---------------------|
+| UpgradeableBeacon        | 900              | 1,270             | 23,676             | 47,882              |
+╰--------------------------+------------------+-------------------+--------------------+---------------------╯
+
+warning[locked-ether]: contract can receive ETH but has no mechanism to send it out
+    ╭▸ flap-vault-example/src/flap/IFlapAIProvider.sol:214:19
+    │
+214 │ abstract contract FlapAIConsumerBase {
+    │                   ━━━━━━━━━━━━━━━━━━
+    │
+    ╰ help: https://getfoundry.sh/forge/linting/locked-ether
+
+warning[missing-zero-check]: address parameter is used in a state write or value transfer without a zero-address check
+    ╭▸ flap-vault-example/src/RedeemVaultBeacon.sol:106:44
+    │
+106 │     function initialize(address _taxToken, address quoteToken_, address _operator, address _redeemToken)
+    │                                            ━━━━━━━━━━━━━━━━━━━
+    │
+    ╰ help: https://getfoundry.sh/forge/linting/missing-zero-check
+
+warning[reentrancy-no-eth]: external call can be reentered before `_status` is updated
+    ╭▸ flap-vault-example/src/RedeemVaultBeacon.sol:303:13
+    │
+303 │         try IERC20Burnable(taxToken).burn(amt) {} catch {}
+    │             ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    │
+    ╰ help: https://getfoundry.sh/forge/linting/reentrancy-no-eth

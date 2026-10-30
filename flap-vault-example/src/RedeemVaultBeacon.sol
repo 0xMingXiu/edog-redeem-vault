@@ -91,6 +91,7 @@ contract RedeemVaultV3Upgradeable is Initializable, VaultBaseV3, ReentrancyGuard
     error MinReceive();
     error TaxMetadataNotReady();
     error InvalidTaxDestruction();
+    error UnsupportedQuote();
 
     modifier onlyOperator() {
         if (msg.sender != operator && msg.sender != _getGuardian()) revert NotOperator();
@@ -107,6 +108,7 @@ contract RedeemVaultV3Upgradeable is Initializable, VaultBaseV3, ReentrancyGuard
         initializer
     {
         __ReentrancyGuard_init();
+        if (quoteToken_ != address(0)) revert UnsupportedQuote();
         require(_taxToken != address(0), "taxToken=0");
         require(_operator != address(0), "operator=0");
         taxToken = _taxToken;
@@ -117,6 +119,10 @@ contract RedeemVaultV3Upgradeable is Initializable, VaultBaseV3, ReentrancyGuard
         if (_redeemToken != address(0)) {
             _setRedeemToken(_redeemToken);
         }
+    }
+
+    function guardian() public view returns (address) {
+        return _getGuardian();
     }
 
     function vaultQuoteToken() public view override returns (address) {
@@ -407,22 +413,23 @@ contract RedeemVaultV3Upgradeable is Initializable, VaultBaseV3, ReentrancyGuard
 
     function description() public view override returns (string memory) {
         if (redeemToken == address(0)) {
-            return unicode"RedeemVault: redeem unset. First-come redeem once open; minReserve is floor not full-float guarantee.";
+            return unicode"Redeem unset. Operator/Guardian can configure and withdraw before opening. Guardian can upgrade. No separate vault fee.";
         }
         if (!redeemEnabled) {
-            return unicode"RedeemVault: CLOSED. Open is one-way; then FCFS against reserve.";
+            return unicode"CLOSED. Reserves withdrawable by operator/Guardian. Opening locks current implementation only; Guardian can upgrade. No separate vault fee.";
         }
-        return unicode"RedeemVault: OPEN+LOCKED. Whole-token 1:1, FCFS vs reserve — not full circulating guarantee.";
+        return unicode"OPEN. 1:1 FCFS against reserve, not full-float guarantee. Withdrawals locked in current implementation; Guardian can upgrade. No separate vault fee.";
     }
 
     function vaultUISchema() public pure override returns (VaultUISchema memory schema) {
         schema.vaultType = "RedeemVault";
         schema.description =
-            unicode"Hardened V3 vault: dust refund, proven supply-burn or DEAD, minReceive, one-way lock. FCFS vs reserve.";
+            unicode"FCFS 1:1, not fully backed. All token amounts are RAW base units: 1 token = 10^decimals. Guardian can upgrade and has operator permissions. Reserve lock applies to current code.";
 
-        schema.methods = new VaultMethodSchema[](5);
+        schema.methods = new VaultMethodSchema[](15);
         schema.methods[0].name = "status";
-        schema.methods[0].description = unicode"On-chain proof + coverageBps (vs minReserve floor).";
+        schema.methods[0].description =
+            unicode"Reserve status; coverageBps compares reserve to operator floor, not circulating supply. Counts use raw token units; see taxDec/redeemDec.";
         schema.methods[0].inputs = new FieldDescriptor[](0);
         schema.methods[0].outputs = new FieldDescriptor[](14);
         schema.methods[0].outputs[0] = FieldDescriptor("enabled", "bool", "", 0);
@@ -461,22 +468,85 @@ contract RedeemVaultV3Upgradeable is Initializable, VaultBaseV3, ReentrancyGuard
         schema.methods[2].approvals[0] = ApproveAction("taxToken", "amount");
         schema.methods[2].isWriteMethod = true;
 
-        schema.methods[3].name = "fund";
-        schema.methods[3].description = unicode"Operator fund redeemToken.";
-        schema.methods[3].inputs = new FieldDescriptor[](1);
-        schema.methods[3].inputs[0] = FieldDescriptor("amount", "uint256", "", 0);
-        schema.methods[3].outputs = new FieldDescriptor[](0);
-        schema.methods[3].approvals = new ApproveAction[](1);
-        schema.methods[3].approvals[0] = ApproveAction("redeemToken", "amount");
-        schema.methods[3].isWriteMethod = true;
+        schema.methods[3] = _writeMethod(
+            "fund",
+            "Operator/Guardian: approve vault on redeemToken FIRST (no automatic approval), then fund RAW units. Or transfer redeemToken directly to vault.",
+            "amount",
+            "uint256"
+        );
+        schema.methods[4] = _writeMethod(
+            "setRedeemEnabled",
+            "Operator/Guardian: opening locks withdrawals and closing in current code. Guardian can upgrade.",
+            "enabled",
+            "bool"
+        );
+        schema.methods[5] = _writeMethod(
+            "setRedeemToken",
+            "Operator/Guardian: set real token once; cannot change later in current code.",
+            "token",
+            "address"
+        );
+        schema.methods[6] = _writeMethod(
+            "setMinReserve",
+            "Operator/Guardian: before opening only. RAW redeemToken units; this floor is not full supply backing.",
+            "amount",
+            "uint256"
+        );
+        schema.methods[7] = _writeMethod(
+            "withdrawRedeemToken",
+            "Operator/Guardian: withdraw real tokens to caller BEFORE opening only. RAW redeemToken units.",
+            "amount",
+            "uint256"
+        );
+        schema.methods[8] = _writeMethod(
+            "withdrawQuote",
+            "Operator/Guardian: withdraw BNB revenue to caller. Amount in wei; not redeemToken reserves.",
+            "amount",
+            "uint256"
+        );
+        schema.methods[9] = _writeMethod(
+            "transferOperator", "Operator/Guardian: replace operator. Guardian retains its access.", "next", "address"
+        );
+        schema.methods[10].name = "sync";
+        schema.methods[10].description = "Anyone: recognize new quote revenue; no transfer.";
+        schema.methods[10].inputs = new FieldDescriptor[](0);
+        schema.methods[10].outputs = new FieldDescriptor[](0);
+        schema.methods[10].approvals = new ApproveAction[](0);
+        schema.methods[10].isWriteMethod = true;
+        schema.methods[11] = _addressView("taxToken", "Tax token address; approve redemption here.");
+        schema.methods[12] = _addressView(
+            "redeemToken", "Real token address; approve vault here before fund, or transfer directly to vault."
+        );
+        schema.methods[13] = _addressView("operator", "Current operator; Guardian also has privileged access.");
+        schema.methods[14] =
+            _addressView("guardian", "Flap Guardian; privileged backup and initial beacon upgrade authority.");
+    }
 
-        schema.methods[4].name = "setRedeemEnabled";
-        schema.methods[4].description = unicode"Open (one-way). Cannot close after lock.";
-        schema.methods[4].inputs = new FieldDescriptor[](1);
-        schema.methods[4].inputs[0] = FieldDescriptor("enabled", "bool", "", 0);
-        schema.methods[4].outputs = new FieldDescriptor[](0);
-        schema.methods[4].approvals = new ApproveAction[](0);
-        schema.methods[4].isWriteMethod = true;
+    function _writeMethod(string memory name, string memory detail, string memory inputName, string memory inputType)
+        internal
+        pure
+        returns (VaultMethodSchema memory method)
+    {
+        method.name = name;
+        method.description = detail;
+        method.inputs = new FieldDescriptor[](1);
+        method.inputs[0] = FieldDescriptor(inputName, inputType, "", 0);
+        method.outputs = new FieldDescriptor[](0);
+        method.approvals = new ApproveAction[](0);
+        method.isWriteMethod = true;
+    }
+
+    function _addressView(string memory name, string memory detail)
+        internal
+        pure
+        returns (VaultMethodSchema memory method)
+    {
+        method.name = name;
+        method.description = detail;
+        method.inputs = new FieldDescriptor[](0);
+        method.outputs = new FieldDescriptor[](1);
+        method.outputs[0] = FieldDescriptor("value", "address", "", 0);
+        method.approvals = new ApproveAction[](0);
     }
 }
 
@@ -487,7 +557,7 @@ contract RedeemVaultBeaconFactory is VaultFactoryBaseV2 {
         RedeemVaultV3Upgradeable impl = new RedeemVaultV3Upgradeable();
         UpgradeableBeacon b = new UpgradeableBeacon(address(impl));
         beacon = address(b);
-        b.renounceOwnership();
+        b.transferOwnership(_getGuardian());
     }
 
     function newVault(address taxToken, address quoteToken, address creator, bytes calldata vaultData)
@@ -496,6 +566,7 @@ contract RedeemVaultBeaconFactory is VaultFactoryBaseV2 {
         returns (address vault)
     {
         require(msg.sender == _getVaultPortal(), unicode"Only VaultPortal");
+        require(quoteToken == address(0), "BNB quote only");
         address redeemTok = address(0);
         if (vaultData.length > 0) {
             redeemTok = abi.decode(vaultData, (address));
@@ -526,6 +597,10 @@ contract RedeemVaultBeaconFactory is VaultFactoryBaseV2 {
         return UpgradeableBeacon(beacon).owner() == address(0);
     }
 
+    function beaconOwner() external view returns (address) {
+        return UpgradeableBeacon(beacon).owner();
+    }
+
     function beaconImplementation() external view returns (address) {
         return UpgradeableBeacon(beacon).implementation();
     }
@@ -541,7 +616,8 @@ contract RedeemVaultBeaconFactory is VaultFactoryBaseV2 {
     }
 
     function vaultDataSchema() public pure override returns (VaultDataSchema memory schema) {
-        schema.description = unicode"Hardened RedeemVault V3; upgrades locked; FCFS redeem vs reserve.";
+        schema.description =
+            unicode"RedeemVault V3; Guardian-controlled upgrades; FCFS against reserve, not fully backed. No separate vault fee. Verification not granted by deployment.";
         schema.fields = new FieldDescriptor[](1);
         schema.fields[0] = FieldDescriptor("redeemToken", "address", "Real token or 0x0", 0);
         schema.isArray = false;
