@@ -1,0 +1,18 @@
+# Foundry build artifacts
+out/
+cache/
+
+# Broadcast logs can contain sensitive transaction data. Keep none of them.
+broadcast/
+
+# Local secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies are git submodules under flap-vault-example/lib (not a vendored tree).
+# From flap-vault-example: forge install
+# Pins (see foundry.lock): forge-std v1.9.6,
+# openzeppelin-contracts v4.9.6,
+# openzeppelin-contracts-upgradeable v4.9.6.
+# Those tags provide security/ReentrancyGuardUpgradeable.sol.
