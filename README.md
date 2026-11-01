@@ -14,8 +14,9 @@ BSC Flap Custom Vault: hardened 1:1 redeem (mapping token → real token).
 - `AUDIT_CHECKLIST.md` — review checklist
 - `TEST_REPORT.txt` — local test log
 - `TESTNET_DEPLOY.md` — BSC testnet factory addresses
+- `MAINNET_DEPLOY.md` — BSC mainnet factory
 
-## Current source (not deployed)
+## Current source
 
 Beacon ownership is transferred exclusively to the chain-specific Flap Guardian at construction. The deployer/operator cannot upgrade. Guardian upgrades can change the current redemption/withdrawal rules; reserve locks are not immutable guarantees. This code has not received Flap verification.
 
@@ -26,7 +27,7 @@ Beacon ownership is transferred exclusively to the chain-specific Flap Guardian 
 `0x5172c3fa1B6D5CcA2469e4EeAbFceD30ECc52fEE` (chainId 97)  
 `factorySpecVersion` = `v2.3`, beacon upgrades locked at deploy.
 
-**This address predates the fixes in this PR and is not a deployment of the patched source.** A fresh Factory/Beacon/implementation deployment and a real Portal end-to-end test are required. No on-chain deployment was performed for this patch.
+**This address predates the fixes in this PR and is not a deployment of the patched source.** BSC mainnet Factory `0x6ca5994E7523A770558fB7FC66a581D578559b4b` is recorded in `MAINNET_DEPLOY.md`.
 
 See `FIX_GUIDE.md` for fixes, compatibility constraints and release steps.
 

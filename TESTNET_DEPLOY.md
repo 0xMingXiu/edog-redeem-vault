@@ -7,8 +7,10 @@
 | Deployer | `0x721Bc63Ab6d452c98DD1d750146bCDf89c40A477` |
 | Spec | v2.3, upgrades locked |
 
-> Historical deployment only: this address is not the patched PR implementation. The beacon is documented as locked, so deploying a new Factory/Beacon/implementation is required; existing Vaults do not receive these fixes. No new deployment or current on-chain verification was performed in this patch.
+> Historical deployment only: this address is not the patched PR implementation. The beacon is documented as locked, so existing Vaults on this Factory do not receive later fixes.
 
-## Next deployment (not performed)
+BSC mainnet Factory: `0x6ca5994E7523A770558fB7FC66a581D578559b4b`. See `MAINNET_DEPLOY.md`.
 
-The new source transfers Beacon ownership to the chain Guardian instead of renouncing it. Check `beaconOwner()` and `UpgradeableBeacon.owner()` against the official address for the target chain. On BSC testnet (97): `0x76Fa8C526f8Bc27ba6958B76DeEf92a0dbE46950`; on BSC mainnet (56): `0x9e27098dcD8844bcc6287a557E0b4D09C86B8a4b`. Confirm current official addresses again before broadcasting. No new Factory address or verification badge is claimed.
+## Guardian owner check
+
+The new source transfers Beacon ownership to the chain Guardian instead of renouncing it. Check `beaconOwner()` and `UpgradeableBeacon.owner()` against the official address for the target chain. On BSC testnet (97): `0x76Fa8C526f8Bc27ba6958B76DeEf92a0dbE46950`; on BSC mainnet (56): `0x9e27098dcD8844bcc6287a557E0b4D09C86B8a4b`.
